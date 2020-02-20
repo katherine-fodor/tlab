@@ -93,7 +93,7 @@ def avg2dict(avgtype,avgpath,jmax,gzip,tstart=-1, tend=-1,tstep=-1):
     retval = p.wait()
     ntimes = len(file_list)
   else :
-    ntimes = (tend - tstart) / tstep + 1
+    ntimes = (tend - tstart) // tstep + 1
 
   if ( files_from_list == 1 ) :
       file_list=sorted(file_list,key=lambda ClassFile: ClassFile.num)

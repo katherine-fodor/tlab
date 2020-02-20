@@ -288,8 +288,8 @@ PROGRAM AVERAGES
      iread_flow = 0
      iread_scal = 1
   CASE (17 ) ! potential vorticity
-     nfield = 1
-     inb_txc = MAX(inb_txc,4)
+     nfield = 2
+     inb_txc = MAX(inb_txc,6)
      iread_flow = 1
      iread_scal = 1
 
@@ -1035,17 +1035,13 @@ PROGRAM AVERAGES
         ENDDO
         
 
-        CALL REYFLUCT2D(imax,jmax,kmax, g(1)%jac,g(3)%jac, area, u)
         u = u*v
         nfield = nfield+1; data(nfield)%field => u; varname(nfield) = 'vu'
-        CALL REYFLUCT2D(imax,jmax,kmax, g(1)%jac,g(3)%jac, area, v)
-        ! I need v' below
+        ! I need v below
         nfield = nfield+1; data(nfield)%field => v; varname(nfield) = 'vv'
-        CALL REYFLUCT2D(imax,jmax,kmax, g(1)%jac,g(3)%jac, area, w)
         w = w*v
         nfield = nfield+1; data(nfield)%field => w; varname(nfield) = 'vw'
         DO is = 1,inb_scal_array
-           CALL REYFLUCT2D(imax,jmax,kmax, g(1)%jac,g(3)%jac, area, s(:,is))
            s(:,is) = s(:,is)*v
            nfield = nfield+1; data(nfield)%field => s(:,is); WRITE(varname(nfield),*) is; varname(nfield) = 'v'//TRIM(ADJUSTL(varname(nfield)))
         ENDDO
@@ -1146,14 +1142,25 @@ PROGRAM AVERAGES
 ! ###################################################################
      CASE ( 17 )
         CALL FI_CURL(imax,jmax,kmax, q(1,1),q(1,2),q(1,3), txc(1,1),txc(1,2),txc(1,3),txc(1,4), wrk2d,wrk3d)
+        txc(1:isize_field,6) = txc(1:isize_field,1)*txc(1:isize_field,1) &
+                             + txc(1:isize_field,2)*txc(1:isize_field,2) &
+                             + txc(1:isize_field,3)*txc(1:isize_field,3) ! Enstrophy
         CALL OPR_PARTIAL_X(OPR_P1, imax,jmax,kmax, bcs, g(1), s(1,1), txc(1,4), wrk3d, wrk2d,wrk3d)
         txc(1:isize_field,1) =                       txc(1:isize_field,1)*txc(1:isize_field,4) 
+        txc(1:isize_field,5) =                       txc(1:isize_field,4)*txc(1:isize_field,4) ! norm grad b
         CALL OPR_PARTIAL_Y(OPR_P1, imax,jmax,kmax, bcs, g(2), s(1,1), txc(1,4), wrk3d, wrk2d,wrk3d)
         txc(1:isize_field,1) = txc(1:isize_field,1) +txc(1:isize_field,2)*txc(1:isize_field,4) 
+        txc(1:isize_field,5) = txc(1:isize_field,5) +txc(1:isize_field,4)*txc(1:isize_field,4) ! norm grad b
         CALL OPR_PARTIAL_Z(OPR_P1, imax,jmax,kmax, bcs, g(3), s(1,1), txc(1,4), wrk3d, wrk2d,wrk3d)
         txc(1:isize_field,1) = txc(1:isize_field,1) +txc(1:isize_field,3)*txc(1:isize_field,4) 
+        txc(1:isize_field,5) = txc(1:isize_field,5) +txc(1:isize_field,4)*txc(1:isize_field,4) ! norm grad b
 
+        txc(1:isize_field,5) = SQRT( txc(1:isize_field,5) +C_SMALL_R) 
+        txc(1:isize_field,6) = SQRT( txc(1:isize_field,6) +C_SMALL_R)
+        txc(1:isize_field,2) = txc(1:isize_field,1) /( txc(1:isize_field,5) *txc(1:isize_field,6) ) ! Cosine of angle between 2 vectors
+       
         data(1)%field => txc(:,1); varname(1) = 'PV'
+        data(2)%field => txc(:,2); varname(2) = 'Cos'
 
         IF (  jmax_aux*opt_block .NE. g(2)%size ) THEN
            DO is = 1,nfield
